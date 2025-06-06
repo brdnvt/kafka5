@@ -3,6 +3,7 @@ package lab1;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import java.util.Properties;
+import java.util.Random;
 
 public class KafkaProducerApp {
     public static void main(String[] args) {
@@ -13,8 +14,6 @@ public class KafkaProducerApp {
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
 
-        // ... existing code ...
-        /*
         Random rand = new Random();
         for (int i = 0; i < 100; i++) {
             String productName = "Product" + (rand.nextInt(10) + 1);
@@ -28,13 +27,19 @@ public class KafkaProducerApp {
                 milkType = rand.nextInt(4) + 1;
             }
             
-            String message = "{"
+            // Створюємо основне повідомлення з деталями напою
+            String drinkMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
                     + "\"size\":\"" + (rand.nextBoolean() ? "short" : "tall") + "\","
                     + "\"milk\":" + milkType + ","
                     + "\"whip\":" + rand.nextInt(2) + ","
                     + "\"serv_size_m_l\":" + (rand.nextInt(500) + 100) + ","
-                    + "\"calories\":" + rand.nextInt(300) + ","
+                    + "\"calories\":" + rand.nextInt(300)
+                    + "}";
+
+            // Створюємо додаткове повідомлення з поживною цінністю
+            String nutritionMessage = "{"
+                    + "\"product_name\":\"" + productName + "\","
                     + "\"total_fat_g\":" + rand.nextDouble() + ","
                     + "\"saturated_fat_g\":" + rand.nextDouble() + ","
                     + "\"trans_fat_g\":" + rand.nextDouble() + ","
@@ -45,13 +50,13 @@ public class KafkaProducerApp {
                     + "\"sugar_g\":" + rand.nextInt(50) + ","
                     + "\"caffeine_mg\":" + rand.nextInt(200)
                     + "}";
-            ProducerRecord<String, String> record = new ProducerRecord<>("starbucks_data", "key-" + i, message);
-            producer.send(record);
+
+            // Відправляємо дані в різні теми, використовуючи product_name як ключ
+            producer.send(new ProducerRecord<>("drinks-info", productName, drinkMessage));
+            producer.send(new ProducerRecord<>("nutrition-info", productName, nutritionMessage));
         }
-        */
-        // ... existing code ...
 
         producer.close();
-        System.out.println("Data sent to Kafka topic.");
+        System.out.println("Data sent to Kafka topics: drinks-info and nutrition-info");
     }
 }
