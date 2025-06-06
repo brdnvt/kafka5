@@ -28,11 +28,9 @@ public class KafkaStreamsJoinApp {
         StreamsBuilder builder = new StreamsBuilder();
         Gson gson = new Gson();
 
-        // Створюємо два потоки з вхідних тем
         KStream<String, String> drinksStream = builder.stream(DRINKS_TOPIC);
         KStream<String, String> nutritionStream = builder.stream(NUTRITION_TOPIC);
 
-        // Розділяємо потік напоїв на високо- та низькокалорійні використовуючи filter
         KStream<String, String> highCalorieDrinks = drinksStream.filter((key, value) -> {
             JsonObject json = gson.fromJson(value, JsonObject.class);
             return json.get("calories").getAsInt() >= 200;
@@ -43,26 +41,23 @@ public class KafkaStreamsJoinApp {
             return json.get("calories").getAsInt() < 200;
         });
 
-        // Записуємо розділені потоки в окремі теми
         highCalorieDrinks.to(HIGH_CALORIE_TOPIC);
         lowCalorieDrinks.to(LOW_CALORIE_TOPIC);
 
-        // Об'єднуємо потоки напоїв та їх поживної цінності
         KStream<String, String> joinedStream = drinksStream.join(
             nutritionStream,
             (drinkInfo, nutritionInfo) -> {
                 JsonObject drink = gson.fromJson(drinkInfo, JsonObject.class);
                 JsonObject nutrition = gson.fromJson(nutritionInfo, JsonObject.class);
                 
-                // Об'єднуємо всі поля з обох JSON об'єктів
                 for (String key : nutrition.keySet()) {
-                    if (!key.equals("product_name")) {  // Пропускаємо дублювання product_name
+                    if (!key.equals("product_name")) {  
                         drink.add(key, nutrition.get(key));
                     }
                 }
                 return drink.toString();
             },
-            JoinWindows.of(Duration.ofMinutes(5)),  // Вікно для join операції
+            JoinWindows.of(Duration.ofMinutes(5)),  
             StreamJoined.with(
                 Serdes.String(),
                 Serdes.String(), 
@@ -70,7 +65,6 @@ public class KafkaStreamsJoinApp {
             )
         );
 
-        // Записуємо об'єднаний потік в нову тему
         joinedStream.to(JOINED_TOPIC);
 
         KafkaStreams streams = new KafkaStreams(builder.build(), props);

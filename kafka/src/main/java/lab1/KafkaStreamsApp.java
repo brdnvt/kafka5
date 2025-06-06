@@ -26,7 +26,6 @@ public class KafkaStreamsApp {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-        // Configure replication factor for repartition topics
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 1);
         props.put(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE);
 
@@ -35,13 +34,11 @@ public class KafkaStreamsApp {
 
         KStream<String, String> inputStream = builder.stream(INPUT_TOPIC);
 
-        // 1. Filter drinks with calories > 200
         KStream<String, String> highCalorieDrinks = inputStream.filter((key, value) -> {
             JsonObject json = gson.fromJson(value, JsonObject.class);
             return json.get("calories").getAsInt() > 200;
         });
 
-        // Count total number of high calorie drinks
         highCalorieDrinks
             .groupBy((key, value) -> "total")
             .count(Materialized.as("high-calorie-count-store"))
@@ -49,7 +46,6 @@ public class KafkaStreamsApp {
             .mapValues(Object::toString)
             .to(HIGH_CALORIE_COUNT_TOPIC);
 
-        // Split into branches by milk type
         highCalorieDrinks.split()
             .branch((key, value) -> {
                 JsonObject json = gson.fromJson(value, JsonObject.class);
@@ -65,7 +61,6 @@ public class KafkaStreamsApp {
                 return milk != 0 && milk != 5;
             }, Branched.withConsumer(ks -> ks.to(OTHER_MILK_TOPIC)));
 
-        // Calculate sum of calories for drinks without milk
         inputStream
             .filter((key, value) -> {
                 JsonObject json = gson.fromJson(value, JsonObject.class);

@@ -27,7 +27,6 @@ public class KafkaProducerApp {
                 milkType = rand.nextInt(4) + 1;
             }
             
-            // Створюємо основне повідомлення з деталями напою
             String drinkMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
                     + "\"size\":\"" + (rand.nextBoolean() ? "short" : "tall") + "\","
@@ -37,7 +36,6 @@ public class KafkaProducerApp {
                     + "\"calories\":" + rand.nextInt(300)
                     + "}";
 
-            // Створюємо додаткове повідомлення з поживною цінністю
             String nutritionMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
                     + "\"total_fat_g\":" + rand.nextDouble() + ","
@@ -51,7 +49,6 @@ public class KafkaProducerApp {
                     + "\"caffeine_mg\":" + rand.nextInt(200)
                     + "}";
 
-            // Відправляємо дані в різні теми, використовуючи product_name як ключ
             producer.send(new ProducerRecord<>("drinks-info", productName, drinkMessage));
             producer.send(new ProducerRecord<>("nutrition-info", productName, nutritionMessage));
         }
