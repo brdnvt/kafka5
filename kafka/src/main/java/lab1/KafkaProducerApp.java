@@ -26,18 +26,19 @@ public class KafkaProducerApp {
             } else {
                 milkType = rand.nextInt(4) + 1;
             }
-            
+            int calories = rand.nextInt(300);
             String drinkMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
                     + "\"size\":\"" + (rand.nextBoolean() ? "short" : "tall") + "\","
                     + "\"milk\":" + milkType + ","
                     + "\"whip\":" + rand.nextInt(2) + ","
                     + "\"serv_size_m_l\":" + (rand.nextInt(500) + 100) + ","
-                    + "\"calories\":" + rand.nextInt(300)
+                    + "\"calories\":" + calories
                     + "}";
 
             String nutritionMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
+                    + "\"calories\":" + calories + ","
                     + "\"total_fat_g\":" + rand.nextDouble() + ","
                     + "\"saturated_fat_g\":" + rand.nextDouble() + ","
                     + "\"trans_fat_g\":" + rand.nextDouble() + ","

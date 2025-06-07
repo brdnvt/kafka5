@@ -11,15 +11,14 @@ import java.time.Duration;
 import java.util.Properties;
 
 public class KafkaStreamsJoinApp {
-    private static final String DRINKS_TOPIC = "drinks-info";
     private static final String NUTRITION_TOPIC = "nutrition-info";
-    private static final String HIGH_CALORIE_TOPIC = "high-calorie-drinks";
-    private static final String LOW_CALORIE_TOPIC = "low-calorie-drinks";
-    private static final String JOINED_TOPIC = "complete-drinks-info";
+    private static final String HIGH_CALORIE_NUTRITION_TOPIC = "high-calorie-nutrition";
+    private static final String LOW_CALORIE_NUTRITION_TOPIC = "low-calorie-nutrition";
+    private static final String JOINED_NUTRITION_TOPIC = "joined-nutrition-info";
 
     public static void main(String[] args) {
         Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "drinks-streams-join-app");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "nutrition-streams-join-app");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
@@ -28,44 +27,56 @@ public class KafkaStreamsJoinApp {
         StreamsBuilder builder = new StreamsBuilder();
         Gson gson = new Gson();
 
-        KStream<String, String> drinksStream = builder.stream(DRINKS_TOPIC);
         KStream<String, String> nutritionStream = builder.stream(NUTRITION_TOPIC);
 
-        KStream<String, String> highCalorieDrinks = drinksStream.filter((key, value) -> {
-            JsonObject json = gson.fromJson(value, JsonObject.class);
-            return json.get("calories").getAsInt() >= 200;
+        KStream<String, String> highCalorieStream = nutritionStream.filter((key, value) -> {
+            try {
+                JsonObject json = gson.fromJson(value, JsonObject.class);
+                return json.has("calories") && json.get("calories").getAsInt() >= 200;
+            } catch (Exception e) {
+                return false;
+            }
         });
 
-        KStream<String, String> lowCalorieDrinks = drinksStream.filter((key, value) -> {
-            JsonObject json = gson.fromJson(value, JsonObject.class);
-            return json.get("calories").getAsInt() < 200;
+        KStream<String, String> lowCalorieStream = nutritionStream.filter((key, value) -> {
+            try {
+                JsonObject json = gson.fromJson(value, JsonObject.class);
+                return json.has("calories") && json.get("calories").getAsInt() < 200;
+            } catch (Exception e) {
+                return false;
+            }
         });
 
-        highCalorieDrinks.to(HIGH_CALORIE_TOPIC);
-        lowCalorieDrinks.to(LOW_CALORIE_TOPIC);
+        highCalorieStream.to(HIGH_CALORIE_NUTRITION_TOPIC);
+        lowCalorieStream.to(LOW_CALORIE_NUTRITION_TOPIC);
 
-        KStream<String, String> joinedStream = drinksStream.join(
-            nutritionStream,
-            (drinkInfo, nutritionInfo) -> {
-                JsonObject drink = gson.fromJson(drinkInfo, JsonObject.class);
-                JsonObject nutrition = gson.fromJson(nutritionInfo, JsonObject.class);
-                
-                for (String key : nutrition.keySet()) {
-                    if (!key.equals("product_name")) {  
-                        drink.add(key, nutrition.get(key));
-                    }
+        KStream<String, String> joinedStream = highCalorieStream.join(
+            lowCalorieStream,
+            (highCalorie, lowCalorie) -> {
+                try {
+                    JsonObject high = gson.fromJson(highCalorie, JsonObject.class);
+                    JsonObject low = gson.fromJson(lowCalorie, JsonObject.class);
+                    
+                    JsonObject result = new JsonObject();
+                    result.addProperty("high_calorie_product", high.get("product_name").getAsString());
+                    result.addProperty("high_calorie_value", high.get("calories").getAsInt());
+                    result.addProperty("low_calorie_product", low.get("product_name").getAsString());
+                    result.addProperty("low_calorie_value", low.get("calories").getAsInt());
+                    
+                    return result.toString();
+                } catch (Exception e) {
+                    return null;
                 }
-                return drink.toString();
             },
-            JoinWindows.of(Duration.ofMinutes(5)),  
+            JoinWindows.of(Duration.ofMinutes(5)),
             StreamJoined.with(
                 Serdes.String(),
-                Serdes.String(), 
+                Serdes.String(),
                 Serdes.String()
             )
         );
 
-        joinedStream.to(JOINED_TOPIC);
+        joinedStream.to(JOINED_NUTRITION_TOPIC);
 
         KafkaStreams streams = new KafkaStreams(builder.build(), props);
         streams.start();
