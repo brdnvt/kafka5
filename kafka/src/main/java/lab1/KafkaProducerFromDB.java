@@ -10,17 +10,17 @@ import java.util.Properties;
 public class KafkaProducerFromDB {
     private static final String USER = "postgres_user";
     private static final String PASSWORD = "postgres_password";
-    public static void main(String[] args) {
 
+    public static void main(String[] args) {
         Properties kafkaProperties = new Properties();
         kafkaProperties.put("bootstrap.servers", "localhost:9092");
         kafkaProperties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         kafkaProperties.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(kafkaProperties);
+        ProducerMetricsCollector metricsCollector = new ProducerMetricsCollector();
 
         String jdbcUrl = "jdbc:postgresql://localhost:5430/postgres_db";
-
 
         try (Connection conn = DriverManager.getConnection(jdbcUrl, USER, PASSWORD)) {
             String query = "SELECT * FROM coffee_products";
@@ -45,14 +45,16 @@ public class KafkaProducerFromDB {
                         + "}";
 
                 producer.send(new ProducerRecord<>("coffee_products", productName, message));
+                metricsCollector.recordMetrics(message);
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
+            metricsCollector.close();
             producer.close();
         }
 
-        System.out.println("Data sent to Kafka.");
+        System.out.println("Data sent to Kafka topic: coffee_products");
     }
 }

@@ -13,21 +13,24 @@ public class KafkaProducerApp {
         properties.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
+        ProducerMetricsCollector metricsCollector = new ProducerMetricsCollector();
 
         Random rand = new Random();
-        for (int i = 0; i < 100; i++) {
-            String productName = "Product" + (rand.nextInt(10) + 1);
-            int milkType;
-            int milkSelector = rand.nextInt(10);
-            if (milkSelector < 2) {
-                milkType = 0;
-            } else if (milkSelector < 5) {
-                milkType = 5;
-            } else {
-                milkType = rand.nextInt(4) + 1;
-            }
-            int calories = rand.nextInt(300);
-            String drinkMessage = "{"
+        try {
+            for (int i = 0; i < 100; i++) {
+                String productName = "Product" + (rand.nextInt(10) + 1);
+                int milkType;
+                int milkSelector = rand.nextInt(10);
+                if (milkSelector < 2) {
+                    milkType = 0;
+                } else if (milkSelector < 5) {
+                    milkType = 5;
+                } else {
+                    milkType = rand.nextInt(4) + 1;
+                }
+                int calories = rand.nextInt(300);
+                
+                String drinkMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
                     + "\"size\":\"" + (rand.nextBoolean() ? "short" : "tall") + "\","
                     + "\"milk\":" + milkType + ","
@@ -36,7 +39,7 @@ public class KafkaProducerApp {
                     + "\"calories\":" + calories
                     + "}";
 
-            String nutritionMessage = "{"
+                String nutritionMessage = "{"
                     + "\"product_name\":\"" + productName + "\","
                     + "\"calories\":" + calories + ","
                     + "\"total_fat_g\":" + rand.nextDouble() + ","
@@ -50,11 +53,21 @@ public class KafkaProducerApp {
                     + "\"caffeine_mg\":" + rand.nextInt(200)
                     + "}";
 
-            producer.send(new ProducerRecord<>("drinks-info", productName, drinkMessage));
-            producer.send(new ProducerRecord<>("nutrition-info", productName, nutritionMessage));
+                producer.send(new ProducerRecord<>("drinks-info", productName, drinkMessage));
+                producer.send(new ProducerRecord<>("nutrition-info", productName, nutritionMessage));
+                
+                metricsCollector.recordMetrics(drinkMessage);
+                metricsCollector.recordMetrics(nutritionMessage);
+                
+                Thread.sleep(100); 
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            metricsCollector.close();
+            producer.close();
         }
 
-        producer.close();
         System.out.println("Data sent to Kafka topics: drinks-info and nutrition-info");
     }
 }
