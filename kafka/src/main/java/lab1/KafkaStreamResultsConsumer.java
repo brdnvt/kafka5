@@ -12,15 +12,15 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class KafkaStreamResultsConsumer {
-    private static final String[] TOPICS = {
+public class KafkaStreamResultsConsumer {    private static final String[] TOPICS = {
         "no_milk_drinks",
         "coconut_milk_drinks",
         "other_milk_drinks",
         "high_calorie_count",
         "no_milk_calories_sum",
         "windowed_calories",
-        "windowed_count"
+        "windowed_count",
+        "producer_metrics"
     };
 
     private static final DateTimeFormatter formatter = 
@@ -56,12 +56,23 @@ public class KafkaStreamResultsConsumer {
 
             while (!stopConsumer.get()) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-                
-                for (ConsumerRecord<String, String> record : records) {
+                  for (ConsumerRecord<String, String> record : records) {
                     String topic = record.topic();
                     String output;
                     
-                    if (topic.equals("windowed_calories") || topic.equals("windowed_count")) {
+                    if (topic.equals("producer_metrics")) {
+                        output = String.format("=== PRODUCER METRICS ===\n" +
+                                              "  Топік: %s\n" +
+                                              "  Ключ: %s\n" +
+                                              "  Метрики: %s\n" +
+                                              "  Partition: %d, Offset: %d\n" +
+                                              "=======================\n",
+                            topic,
+                            record.key(),
+                            record.value(),
+                            record.partition(),
+                            record.offset());
+                    } else if (topic.equals("windowed_calories") || topic.equals("windowed_count")) {
                         String[] parts = record.key().split("@");
                         String key = parts[0];
                         String timestamp = formatter.format(
